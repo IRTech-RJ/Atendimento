@@ -1,4 +1,4 @@
-import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Menu } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { DemoNotice } from "../components/DemoNotice";
 import { StatusBadge } from "../components/StatusBadge";
@@ -55,14 +55,6 @@ export function WorkspaceLayout({
               aria-label="Abrir menu"
             >
               <Menu className="size-5" />
-            </button>
-            <button
-              className="hidden rounded-lg p-2 text-slate-600 hover:bg-slate-100 md:block"
-              onClick={() => setSidebarCollapsed((current) => !current)}
-              aria-label={sidebarCollapsed ? "Expandir painel lateral" : "Recolher painel lateral"}
-              title={sidebarCollapsed ? "Expandir painel lateral" : "Recolher painel lateral"}
-            >
-              {sidebarCollapsed ? <PanelLeftOpen className="size-5" /> : <PanelLeftClose className="size-5" />}
             </button>
             <span className="text-sm font-medium text-slate-500">
               {mode === "admin" ? "Painel IR Tech" : companyName}

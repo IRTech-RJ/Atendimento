@@ -77,12 +77,15 @@ export function WorkspaceSidebar({
           open ? "translate-x-0" : "-translate-x-full"
         } ${collapsed ? "md:w-[80px] md:px-3" : "md:w-[264px]"}`}
       >
-        <div className="flex items-center justify-between px-2">
+        <div className={`flex items-center justify-between px-2 ${collapsed ? "md:flex-col md:justify-start md:gap-3" : ""}`}>
           <div className={collapsed ? "md:hidden" : ""}>
             <BrandMark />
           </div>
           {collapsed && (
-            <div className="hidden size-10 shrink-0 place-items-center rounded-xl bg-teal-400 text-sm font-black text-slate-950 md:grid">
+            <div
+              className="hidden size-10 shrink-0 place-items-center rounded-xl bg-teal-400 text-sm font-black text-slate-950 md:grid"
+              title="IR Tech · Atendimento"
+            >
               IR
             </div>
           )}
@@ -99,11 +102,7 @@ export function WorkspaceSidebar({
           </button>
         </div>
 
-        <div className={`mt-8 rounded-xl border border-white/10 bg-white/[0.04] ${collapsed ? "md:grid md:size-14 md:place-items-center md:p-0" : "px-3 py-3"}`}>
-          <div className={collapsed ? "hidden md:block" : "hidden"}>
-            <Building2 className="size-5 text-slate-400" />
-          </div>
-          <div className={collapsed ? "md:hidden" : ""}>
+        <div className={`mt-8 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 ${collapsed ? "md:hidden" : ""}`}>
           <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
             {mode === "admin" ? "Ambiente" : "Empresa"}
           </p>
@@ -112,7 +111,6 @@ export function WorkspaceSidebar({
               {mode === "admin" ? "Administração IR Tech" : companyName}
             </span>
             <ChevronDown className="size-4 shrink-0 text-slate-500" />
-          </div>
           </div>
         </div>
 
