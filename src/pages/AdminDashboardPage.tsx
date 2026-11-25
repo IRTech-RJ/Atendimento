@@ -1,4 +1,4 @@
-import { Activity, ArrowRight, Building2, Layers3, Users } from "lucide-react";
+import { Activity, ArrowRight, Building2, Layers3, MessageSquare, Users } from "lucide-react";
 import { PageHeading } from "../components/PageHeading";
 import { StatusPill } from "../components/StatusPill";
 import type { AdminSection, Company, Department, WorkspaceUser } from "../types/workspace";
@@ -16,6 +16,7 @@ export function AdminDashboardPage({ companies, users, departments, onNavigate }
     { label: "Empresas clientes", value: companies.length, detail: `${activeCompanies} ambientes ativos`, icon: Building2, tint: "bg-teal-50 text-teal-800" },
     { label: "Usuários cadastrados", value: users.length, detail: "Distribuídos entre as empresas", icon: Users, tint: "bg-indigo-50 text-indigo-700" },
     { label: "Setores configurados", value: departments.length, detail: "Organizados por empresa", icon: Layers3, tint: "bg-amber-50 text-amber-700" },
+    { label: "Conversas demonstrativas", value: 6, detail: "Movimentação ativa hoje", icon: MessageSquare, tint: "bg-rose-50 text-rose-700" },
   ];
 
   return (
@@ -25,7 +26,7 @@ export function AdminDashboardPage({ companies, users, departments, onNavigate }
         title="Painel IR Tech"
         description="Acompanhe a estrutura das empresas clientes e dos ambientes de atendimento."
       />
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map(({ label, value, detail, icon: Icon, tint }) => (
           <article key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-start justify-between">

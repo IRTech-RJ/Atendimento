@@ -1,4 +1,4 @@
-import type { Company, Department, WorkspaceUser } from "../types/workspace";
+import type { Company, DemoContact, DemoConversation, Department, WorkspaceUser } from "../types/workspace";
 
 export const demoCompanies: Company[] = [
   {
@@ -62,4 +62,120 @@ export const demoUsers: WorkspaceUser[] = [
     departmentId: "department-vendas",
     status: "Ativo",
   },
+];
+
+export const demoConversations: DemoConversation[] = [
+  {
+    id: "conversation-1",
+    companyId: "company-aurora",
+    contactName: "Juliana Pereira",
+    contactPhone: "(19) 99742-0186",
+    initials: "JP",
+    department: "Delivery",
+    assignee: "Ana Martins",
+    subject: "Pedido atrasado",
+    status: "Aberta",
+    unread: 2,
+    lastTime: "10:42",
+    messages: [
+      { id: "m1", from: "contact", body: "Olá! Meu pedido saiu para entrega às 9h, mas ainda não chegou.", time: "10:38" },
+      { id: "m2", from: "agent", body: "Bom dia, Juliana! Vou verificar a rota do entregador agora mesmo.", time: "10:39" },
+      { id: "m3", from: "contact", body: "Obrigada. O pedido é para o meu almoço e preciso confirmar o horário.", time: "10:42" },
+    ],
+  },
+  {
+    id: "conversation-2",
+    companyId: "company-aurora",
+    contactName: "Carlos Mendes",
+    contactPhone: "(19) 99123-8745",
+    initials: "CM",
+    department: "Delivery",
+    assignee: "Lucas Ribeiro",
+    subject: "Troca de horário",
+    status: "Pendente",
+    unread: 0,
+    lastTime: "10:15",
+    messages: [
+      { id: "m4", from: "contact", body: "Conseguem entregar o pedido das 14h às 15h?", time: "10:10" },
+      { id: "m5", from: "agent", body: "Consigo ajustar para esse período. Vou confirmar a disponibilidade.", time: "10:15" },
+    ],
+  },
+  {
+    id: "conversation-3",
+    companyId: "company-aurora",
+    contactName: "Mariana Souza",
+    contactPhone: "(19) 98876-5521",
+    initials: "MS",
+    department: "Atendimento",
+    assignee: "Lucas Ribeiro",
+    subject: "Cadastro de CPF na nota",
+    status: "Aberta",
+    unread: 1,
+    lastTime: "09:58",
+    messages: [
+      { id: "m6", from: "contact", body: "Posso cadastrar meu CPF antes de finalizar a compra no site?", time: "09:58" },
+    ],
+  },
+  {
+    id: "conversation-4",
+    companyId: "company-aurora",
+    contactName: "Roberto Lima",
+    contactPhone: "(19) 99640-1188",
+    initials: "RL",
+    department: "Financeiro",
+    assignee: "Ana Martins",
+    subject: "Segunda via da nota fiscal",
+    status: "Resolvida",
+    unread: 0,
+    lastTime: "Ontem",
+    messages: [
+      { id: "m7", from: "contact", body: "Preciso da segunda via da nota do pedido 48192.", time: "16:22" },
+      { id: "m8", from: "agent", body: "Encontrei o documento e acabei de enviar por e-mail.", time: "16:31" },
+      { id: "m9", from: "contact", body: "Recebi aqui. Muito obrigado!", time: "16:33" },
+    ],
+  },
+  {
+    id: "conversation-5",
+    companyId: "company-aurora",
+    contactName: "Fernanda Alves",
+    contactPhone: "(19) 99218-3304",
+    initials: "FA",
+    department: "Atendimento",
+    assignee: "Ana Martins",
+    subject: "Disponibilidade de produto",
+    status: "Pendente",
+    unread: 0,
+    lastTime: "09:20",
+    messages: [
+      { id: "m10", from: "contact", body: "Vocês têm café especial em grãos na unidade Campinas?", time: "09:12" },
+      { id: "m11", from: "agent", body: "Vou consultar o estoque da unidade e te retorno em alguns minutos.", time: "09:20" },
+    ],
+  },
+  {
+    id: "conversation-6",
+    companyId: "company-aurora",
+    contactName: "Paulo Henrique",
+    contactPhone: "(19) 98730-9090",
+    initials: "PH",
+    department: "Delivery",
+    assignee: "Lucas Ribeiro",
+    subject: "Produto ausente no pedido",
+    status: "Resolvida",
+    unread: 0,
+    lastTime: "Ontem",
+    messages: [
+      { id: "m12", from: "contact", body: "Faltou um produto no pedido que chegou agora.", time: "17:40" },
+      { id: "m13", from: "agent", body: "Me desculpe. Vou gerar o crédito e informar o prazo.", time: "17:45" },
+      { id: "m14", from: "contact", body: "Tudo certo, obrigado pela agilidade!", time: "17:48" },
+    ],
+  },
+];
+
+export const demoContacts: DemoContact[] = [
+  { id: "contact-1", companyId: "company-aurora", name: "Juliana Pereira", phone: "(19) 99742-0186", email: "juliana.pereira@example.com", city: "Campinas, SP", lastContact: "Hoje, 10:42", tags: ["Delivery", "Cliente recorrente"] },
+  { id: "contact-2", companyId: "company-aurora", name: "Carlos Mendes", phone: "(19) 99123-8745", email: "carlos.mendes@example.com", city: "Campinas, SP", lastContact: "Hoje, 10:15", tags: ["Delivery"] },
+  { id: "contact-3", companyId: "company-aurora", name: "Mariana Souza", phone: "(19) 98876-5521", email: "mariana.souza@example.com", city: "Valinhos, SP", lastContact: "Hoje, 09:58", tags: ["Novo cliente"] },
+  { id: "contact-4", companyId: "company-aurora", name: "Roberto Lima", phone: "(19) 99640-1188", email: "roberto.lima@example.com", city: "Campinas, SP", lastContact: "Ontem", tags: ["Financeiro", "Nota fiscal"] },
+  { id: "contact-5", companyId: "company-aurora", name: "Fernanda Alves", phone: "(19) 99218-3304", email: "fernanda.alves@example.com", city: "Hortolândia, SP", lastContact: "Hoje, 09:20", tags: ["Produtos"] },
+  { id: "contact-6", companyId: "company-aurora", name: "Paulo Henrique", phone: "(19) 98730-9090", email: "paulo.henrique@example.com", city: "Campinas, SP", lastContact: "Ontem", tags: ["Delivery", "Reembolso"] },
 ];

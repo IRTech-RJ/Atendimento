@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { demoCompanies, demoDepartments, demoUsers } from "../data/demoData";
+import { demoCompanies, demoContacts, demoConversations, demoDepartments, demoUsers } from "../data/demoData";
 import { WorkspaceLayout } from "./WorkspaceLayout";
 import { AdminDashboardPage } from "../pages/AdminDashboardPage";
 import { CompaniesPage } from "../pages/CompaniesPage";
 import { CompanyDashboardPage } from "../pages/CompanyDashboardPage";
 import { DepartmentsPage } from "../pages/DepartmentsPage";
 import { UsersPage } from "../pages/UsersPage";
+import { DemoConversationsPage } from "../pages/DemoConversationsPage";
+import { DemoContactsPage } from "../pages/DemoContactsPage";
 import type {
   AdminSection,
   CompanySection,
@@ -136,6 +138,16 @@ export function Workspace({ mode, onLogout }: WorkspaceProps) {
           companyId={company.id}
           onSave={saveDepartment}
           onToggleStatus={toggleDepartmentStatus}
+        />
+      )}
+      {companySection === "conversations" && (
+        <DemoConversationsPage
+          conversations={demoConversations.filter((conversation) => conversation.companyId === company.id)}
+        />
+      )}
+      {companySection === "contacts" && (
+        <DemoContactsPage
+          contacts={demoContacts.filter((contact) => contact.companyId === company.id)}
         />
       )}
     </>

@@ -4,16 +4,16 @@ Plataforma SaaS de atendimento empresarial da IR Tech. Slogan: **Soluções inte
 O código da aplicação está sendo desenvolvido do zero; não usa Chatwoot, Docker, Firebase, Supabase,
 WhatsApp Web ou serviço de atendimento de terceiros.
 
-## Arquitetura escolhida
+## Tecnologias
 
-- **React + TypeScript + Vite:** interface web tipada e ambiente de desenvolvimento rápido.
-- **Tailwind CSS:** estilos responsivos sem depender de um kit visual pronto.
-- **Cloudflare Workers + Vite plugin oficial:** API e frontend no mesmo projeto e runtime local próximo ao de produção.
-- **Cloudflare D1 (SQLite):** dados relacionais de empresas, usuários, setores, permissões e sessões.
-- **Cloudflare R2:** binding preparado para arquivos; integração de upload ainda não implementada.
-- **Git + GitHub Actions:** versionamento e pipeline de deploy preparados, sem conectar contas.
+- **React + TypeScript + Vite** para a interface e desenvolvimento local.
+- **Tailwind CSS** para estilos responsivos próprios.
+- **Cloudflare Workers** para a API, executada localmente pelo plugin oficial do Vite.
+- **Cloudflare D1 (SQLite)** para persistência relacional e migrações locais.
+- **Cloudflare R2** reservado para arquivos (nenhum upload implementado).
+- **Git + GitHub Actions** para versionamento; deploy automático permanece desativado.
 
-Não é necessário instalar Docker. Git e Node.js/npm foram verificados neste ambiente.
+Não é necessário instalar Docker. Git, Node.js e npm foram verificados neste ambiente.
 
 ## Estrutura
 
@@ -23,14 +23,15 @@ src/
   data/         dados fictícios exclusivos da demonstração local
   layouts/      layouts administrativo e da empresa
   pages/        login e painéis
+  services/     chamadas HTTP de autenticação
   styles/       Tailwind e estilos globais
   types/        tipos de domínio e API
-worker/         entrada da API Cloudflare Workers
+worker/
+  routes/       autenticação, administração e recursos por tenant
 migrations/     migrações SQL do D1
+scripts/        teste de integração da API
 public/         arquivos estáticos
-docs/           arquitetura e decisões técnicas
-.github/
-  workflows/    deploy opcional e desativado por padrão
+docs/           arquitetura e API local
 ```
 
 ## Executar localmente no Windows
@@ -39,63 +40,83 @@ No terminal do VS Code, na pasta do projeto:
 
 ```powershell
 npm install
+npm run db:migrate:local
+Copy-Item .dev.vars.example .dev.vars
+```
+
+Edite `.dev.vars` e troque o valor de exemplo de `BOOTSTRAP_ADMIN_KEY` por uma chave aleatória
+longa. Para gerar uma no terminal sem instalar nada:
+
+```powershell
+node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"
+```
+
+Depois, inicie o sistema:
+
+```powershell
 npm run dev
 ```
 
-Abra no navegador o endereço local mostrado no terminal (normalmente `http://localhost:5173`).
-Na tela inicial, escolha **Painel IR Tech** ou **Espaço da empresa** para percorrer a demonstração.
-O endpoint de diagnóstico local é `/api/health`.
+Abra o endereço mostrado pelo Vite (normalmente `http://localhost:5173`). Na primeira visita,
+escolha **Configurar o primeiro administrador**, informe a chave local, nome, e-mail e uma senha de
+no mínimo 12 caracteres. Esse cadastro é permitido uma única vez por banco. Para a administração
+IR Tech, use o espaço `ir-tech`; para usuários de empresa, use o identificador (`slug`) da empresa.
 
-Os cadastros da demonstração são apenas dados fictícios em memória: eles não são gravados no D1 e
-desaparecem ao recarregar a página. O acesso por e-mail e senha está desativado; os botões de
-demonstração não autenticam usuários.
+`.dev.vars` é local e ignorado pelo Git. Não envie essa chave para o GitHub. `.env.example` contém
+somente configuração pública do frontend.
 
-## Comandos
+## Migrations e testes
 
-| Comando | Uso |
-| --- | --- |
-| `npm run dev` | Inicia o Vite e o Worker local |
-| `npm run typecheck` | Verifica os tipos TypeScript |
-| `npm run build` | Verifica os tipos e gera o build |
-| `npm run preview` | Gera o build e executa uma prévia local |
-| `npm run db:migrate:local` | Aplica migrações no D1 local |
-| `npm run db:migrate:remote` | Aplica migrações no D1 remoto |
-| `npm run deploy` | Gera o build e publica no Cloudflare |
+```powershell
+npm run db:migrate:local
+npm run typecheck
+npm run build
+```
 
-`migrations/0001_initial.sql` define empresas, usuários, setores, associações de permissão por
-setor e sessões. Chaves estrangeiras compostas impedem associar um usuário a setor de outro tenant.
-As tabelas não representam uma autenticação pronta: o login, o hash de senha e a gestão segura de
-sessões ainda precisam ser implementados antes de usar dados reais.
+Para testar login, isolamento de tenants, permissões e recursos da API, defina as credenciais de um
+administrador IR Tech existente no terminal sem gravá-las em arquivos:
 
-## Configuração Cloudflare
+```powershell
+$env:TEST_ADMIN_EMAIL = Read-Host "E-mail do administrador IR Tech"
+$secure = Read-Host "Senha do administrador IR Tech" -AsSecureString
+$env:TEST_ADMIN_PASSWORD = (New-Object System.Net.NetworkCredential("", $secure)).Password
+npm run test:api
+Remove-Item Env:TEST_ADMIN_EMAIL, Env:TEST_ADMIN_PASSWORD
+```
 
-`wrangler.jsonc` configura o Worker, o fallback SPA, o binding D1 (`DB`) e o binding R2 (`MEDIA`).
-O ID D1 é um valor de exemplo e o bucket não foi criado. Para desenvolvimento local, o Wrangler
-emula os bindings; `npm run db:migrate:local` cria o banco local e aplica a migração.
+O teste cria empresas e registros fictícios e os exclui logicamente ao terminar. As migrações são
+aplicadas apenas ao D1 local por `db:migrate:local`; não execute `db:migrate:remote` nem `deploy`.
 
-Não rode `db:migrate:remote` nem `deploy` sem antes configurar sua conta e autorizar a operação.
-Nenhum recurso ou serviço externo foi criado/conectado neste projeto.
+## API implementada
 
-`.env.example` contém apenas uma URL pública do frontend. Valores `VITE_*` são enviados ao navegador
-e nunca devem conter credenciais. Segredos locais devem ficar em `.dev.vars` (ignorado pelo Git);
-segredos remotos devem ser cadastrados como secrets no Wrangler.
+- `GET /api/setup/status` e `POST /api/setup/platform-admin`: configuração única do administrador inicial.
+- `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`: sessões.
+- `/api/admin/companies`: administração global de empresas; somente `platform_admin`.
+- `/api/tenants/:tenantId/users`, `/departments`, `/contacts`, `/conversations`, `/tags`.
+- `/api/tenants/:tenantId/conversations/:conversationId/messages` e associação de etiquetas.
 
-## GitHub Actions
+Detalhes de payloads, papéis e isolamento estão em [docs/api-local.md](docs/api-local.md).
 
-`.github/workflows/deploy.yml` pode publicar na branch `master`, mas está **desativado por padrão**.
-Para habilitá-lo futuramente, configure os segredos `CLOUDFLARE_API_TOKEN` e
-`CLOUDFLARE_ACCOUNT_ID`, configure D1/R2 e defina a variável do repositório
-`CLOUDFLARE_DEPLOY_ENABLED` como `true`. Se a branch principal do futuro repositório for renomeada,
-ajuste o gatilho do workflow para refletir o novo nome.
+## Segurança e isolamento
 
-## Escopo desta etapa e limitações
+Senhas são verificadas com PBKDF2-HMAC-SHA-256 (600.000 iterações e salt aleatório); a senha em
+texto puro não é persistida. As sessões usam token aleatório, armazenam somente SHA-256 do token e
+utilizam cookie `HttpOnly`, `SameSite=Strict`, expiração de 12 horas e `Secure` em HTTPS.
 
-- A tela de login e os painéis são uma demonstração de interface, não um produto com autenticação.
-- Os cadastros demonstrativos não são persistidos. As APIs de empresas, usuários e setores ainda não
-  estão conectadas.
-- Integração oficial WhatsApp Business Platform, conversas, pedidos/delivery, planos/assinaturas,
-  domínio próprio e PWA ficam para etapas seguintes.
-- Não há envio/recebimento de WhatsApp nem automação simulada.
+O tenant é associado à sessão no backend. Os endpoints validam o tenant e a permissão antes de
+consultar dados; IDs enviados pelo navegador não concedem acesso. Chaves estrangeiras compostas
+também impedem associar registros de setores, conversas e mensagens a outra empresa. Empresas,
+usuários, setores, contatos, conversas, mensagens e etiquetas usam exclusão lógica.
 
-Consulte [docs/arquitetura.md](docs/arquitetura.md) para detalhes do isolamento multi-tenant e
-próximas decisões.
+O sistema ainda precisa de limitação de tentativas de login, recuperação de senha e uma revisão de
+segurança antes de qualquer uso comercial. Não há integração WhatsApp nem módulo Delivery. Mensagens
+criadas pela API são apenas registros no D1; nenhum envio ou recebimento externo ocorre.
+
+## Cloudflare e GitHub
+
+Não alterei a configuração de conta da Cloudflare, não criei recursos remotos e não fiz deploy.
+`wrangler.jsonc` permanece com ID D1 de exemplo e nome de bucket reservado; qualquer configuração
+remota fica para a etapa final.
+
+O workflow `.github/workflows/deploy.yml` é desativado por padrão. O deploy só pode ser habilitado
+futuramente após configurar a conta e definir `CLOUDFLARE_DEPLOY_ENABLED=true` no GitHub.

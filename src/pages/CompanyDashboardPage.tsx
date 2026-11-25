@@ -1,12 +1,12 @@
-import { ArrowRight, Headset, Layers3, Users, WifiOff } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock3, Headset, Layers3, MessageCircle, Users } from "lucide-react";
 import { PageHeading } from "../components/PageHeading";
-import type { Company, Department, WorkspaceUser } from "../types/workspace";
+import type { Company, CompanySection, Department, WorkspaceUser } from "../types/workspace";
 
 interface CompanyDashboardPageProps {
   company: Company;
   users: WorkspaceUser[];
   departments: Department[];
-  onNavigate: (section: "users" | "departments") => void;
+  onNavigate: (section: CompanySection) => void;
 }
 
 export function CompanyDashboardPage({ company, users, departments, onNavigate }: CompanyDashboardPageProps) {
@@ -38,16 +38,28 @@ export function CompanyDashboardPage({ company, users, departments, onNavigate }
           <span className="grid size-10 place-items-center rounded-xl bg-slate-100 text-slate-600"><Headset className="size-5" /></span>
           <div>
             <h2 className="font-semibold text-slate-900">Caixa de entrada</h2>
-            <p className="mt-1 text-sm text-slate-500">Conversas e mensagens aparecerão neste espaço.</p>
+            <p className="mt-1 text-sm text-slate-500">Visão rápida das conversas recentes.</p>
           </div>
+          <button onClick={() => onNavigate("conversations")} className="ml-auto inline-flex items-center gap-2 text-sm font-medium text-teal-800 hover:text-teal-950">
+            Abrir conversas <ArrowRight className="size-4" />
+          </button>
         </div>
-        <div className="flex min-h-56 flex-col items-center justify-center px-5 py-10 text-center">
-          <span className="grid size-12 place-items-center rounded-full bg-amber-50 text-amber-700"><WifiOff className="size-5" /></span>
-          <h3 className="mt-4 text-sm font-semibold text-slate-800">Nenhum canal conectado</h3>
-          <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
-            A integração oficial com a WhatsApp Business Platform ainda não foi configurada.
-            Nenhuma mensagem está sendo recebida ou enviada.
-          </p>
+        <div className="grid gap-3 p-5 sm:grid-cols-3">
+          <div className="rounded-xl border border-slate-200 p-4">
+            <span className="grid size-9 place-items-center rounded-lg bg-teal-50 text-teal-800"><MessageCircle className="size-4" /></span>
+            <p className="mt-3 text-2xl font-semibold text-slate-950">6</p>
+            <p className="mt-1 text-xs text-slate-500">Conversas no período</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 p-4">
+            <span className="grid size-9 place-items-center rounded-lg bg-amber-50 text-amber-700"><Clock3 className="size-4" /></span>
+            <p className="mt-3 text-2xl font-semibold text-slate-950">3</p>
+            <p className="mt-1 text-xs text-slate-500">Aguardando atendimento</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 p-4">
+            <span className="grid size-9 place-items-center rounded-lg bg-emerald-50 text-emerald-700"><CheckCircle2 className="size-4" /></span>
+            <p className="mt-3 text-2xl font-semibold text-slate-950">92%</p>
+            <p className="mt-1 text-xs text-slate-500">Conversa resolvida</p>
+          </div>
         </div>
       </section>
     </div>

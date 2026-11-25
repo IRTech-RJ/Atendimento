@@ -9,6 +9,7 @@
     "preview": "npm run build && vite preview",
     "deploy": "npm run build && wrangler deploy",
     "typecheck": "tsc -b",
+    "test:api": "node scripts/test-api.mjs",
     "db:migrate:local": "wrangler d1 migrations apply atendimento-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply atendimento-db --remote"
   },

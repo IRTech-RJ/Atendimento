@@ -1,0 +1,4 @@
+# Copie para .dev.vars e substitua pelo valor aleatório que protegerá o primeiro cadastro.
+BOOTSTRAP_ADMIN_KEY=substitua-por-uma-chave-local-aleatoria
+WHATSAPP_APP_SECRET=substitua-pelo-app-secret-da-meta
+WHATSAPP_DATA_ENCRYPTION_KEY=substitua-pela-chave-aleatoria-de-criptografia
