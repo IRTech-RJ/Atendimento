@@ -8,6 +8,7 @@ import { DepartmentsPage } from "../pages/DepartmentsPage";
 import { UsersPage } from "../pages/UsersPage";
 import { DemoConversationsPage } from "../pages/DemoConversationsPage";
 import { DemoContactsPage } from "../pages/DemoContactsPage";
+import { DemoChannelsPage } from "../pages/DemoChannelsPage";
 import type {
   AdminSection,
   CompanySection,
@@ -150,6 +151,7 @@ export function Workspace({ mode, onLogout }: WorkspaceProps) {
           contacts={demoContacts.filter((contact) => contact.companyId === company.id)}
         />
       )}
+      {companySection === "whatsapp" && <DemoChannelsPage />}
     </>
   ) : (
     <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">

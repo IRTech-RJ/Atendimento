@@ -1,8 +1,10 @@
 import {
   assertConversationAccess,
+  isCompanyTrialExpired,
   requireDepartmentAccess,
   requirePermission,
   requireTenantAccess,
+  requireTrialWriteAccess,
   type WorkerEnv,
 } from "../authorization";
 import { ApiError } from "../errors";
@@ -47,12 +49,38 @@ export async function handleTenantRoutes(
   await requireTenantAccess(env.DB, user, tenantId);
   const resource = parts[3];
 
+  if (resource === "trial" && request.method === "GET") {
+    const trial = await env.DB
+      .prepare("SELECT trial_started_at, trial_ends_at FROM companies WHERE id = ? LIMIT 1")
+      .bind(tenantId)
+      .first<{ trial_started_at: string | null; trial_ends_at: string | null }>();
+    const expired = await isCompanyTrialExpired(env.DB, tenantId);
+    const daysRemaining = trial?.trial_ends_at && !expired
+      ? Math.max(0, Math.ceil((Date.parse(trial.trial_ends_at) - Date.now()) / 86_400_000))
+      : 0;
+    return json({
+      trial: {
+        startedAt: trial?.trial_started_at ?? null,
+        endsAt: trial?.trial_ends_at ?? null,
+        daysRemaining,
+        expired,
+      },
+    });
+  }
+
+  if (request.method !== "GET" && user.role !== "platform_admin") {
+    await requireTrialWriteAccess(env.DB, tenantId);
+  }
+
   if (resource === "users") return handleUsers(request, env, user, tenantId, parts.slice(4));
   if (resource === "departments") return handleDepartments(request, env, user, tenantId, parts.slice(4));
   if (resource === "contacts") return handleContacts(request, env, user, tenantId, parts.slice(4));
   if (resource === "conversations") return handleConversations(request, env, user, tenantId, parts.slice(4));
   if (resource === "tags") return handleTags(request, env, user, tenantId, parts.slice(4));
   if (resource === "whatsapp") return handleWhatsAppAccountRoutes(request, env, user, tenantId, parts.slice(4));
+  if (resource === "telegram") {
+    throw new ApiError(501, "telegram_coming_soon", "A integração com Telegram estará disponível em breve.");
+  }
 
   throw new ApiError(404, "not_found", "Rota não encontrada.");
 }
@@ -476,7 +504,8 @@ async function handleConversations(
              AND ud.user_id = ? AND ud.can_view_conversations = 1
          )`;
     const statement = env.DB.prepare(
-      `SELECT cv.id, cv.tenant_id, cv.contact_id, ct.name AS contact_name, cv.department_id,
+      `SELECT cv.id, cv.tenant_id, cv.contact_id, ct.name AS contact_name,
+              ct.phone AS contact_phone, ct.provider AS contact_provider, cv.department_id,
               d.name AS department_name, cv.assigned_user_id, u.name AS assigned_user_name,
               cv.subject, cv.status, cv.created_at, cv.updated_at
        FROM conversations cv
@@ -617,9 +646,9 @@ async function handleConversations(
       let providerStatus: string | null = null;
       let provider = "local";
       if (direction === "outbound") {
-        const sent = await sendWhatsAppText(env, tenantId, conversationId, text);
-        providerExternalId = sent?.id ?? null;
-        if (sent) provider = "whatsapp";
+        const whatsappMessage = await sendWhatsAppText(env, tenantId, conversationId, text);
+        providerExternalId = whatsappMessage?.id ?? null;
+        if (whatsappMessage) provider = "whatsapp";
       }
       await env.DB
         .prepare(
@@ -935,7 +964,8 @@ async function getConversation(
            AND ud.user_id = ? AND ud.can_view_conversations = 1
        )`;
   const statement = env.DB.prepare(
-    `SELECT cv.id, cv.tenant_id, cv.contact_id, ct.name AS contact_name, cv.department_id,
+    `SELECT cv.id, cv.tenant_id, cv.contact_id, ct.name AS contact_name,
+            ct.phone AS contact_phone, ct.provider AS contact_provider, cv.department_id,
             d.name AS department_name, cv.assigned_user_id, u.name AS assigned_user_name,
             cv.subject, cv.status, cv.created_at, cv.updated_at
      FROM conversations cv

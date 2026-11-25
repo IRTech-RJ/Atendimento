@@ -66,18 +66,27 @@ recursos da própria empresa; `platform_admin` pode administrá-los em qualquer 
 
 ## WhatsApp Cloud API
 
+- `GET /api/tenants/:tenantId/trial` retorna datas e dias restantes. O teste inicia na primeira
+  conexão de canal e dura 15 dias. Após o vencimento, leituras continuam disponíveis, mas as
+  operações de escrita e novas mensagens são bloqueadas.
 - Configure `WHATSAPP_APP_SECRET` em `.dev.vars` para validar assinaturas dos webhooks.
-- Configure `WHATSAPP_DATA_ENCRYPTION_KEY` com uma chave aleatória e estável para criptografar
-  o access token no D1. Não altere esta chave após cadastrar uma conta.
-- O access token pode ser configurado na tela **WhatsApp** da empresa ou por API.
+- Configure `DATA_ENCRYPTION_KEY` com uma chave aleatória e estável para criptografar credenciais
+  dos canais no D1. O nome legado `WHATSAPP_DATA_ENCRYPTION_KEY` também é aceito; não altere o valor
+  após cadastrar uma conta.
+- As credenciais podem ser configuradas na tela **Canais** da empresa ou por API.
 - `PUT /api/tenants/:tenantId/whatsapp` cadastra `phoneNumberId`, `accessToken`, `verifyToken` e
-  `defaultDepartmentId`. `GET` consulta a configuração sem retornar o access token; `DELETE` remove.
+  `defaultDepartmentId` e `displayName`. `GET` consulta a configuração sem retornar os tokens;
+  `PATCH` altera os dados e permite trocar os tokens; `DELETE` remove.
 - A Meta deve chamar `GET/POST /api/webhooks/whatsapp`. O GET usa `verifyToken`; o POST recebe textos,
   cria contato/conversa quando necessário e grava mensagens inbound.
 - Enviar uma mensagem `outbound` usa a Cloud API quando a conta está habilitada. Sem configuração,
   a mensagem continua sendo registrada apenas localmente.
 - Suporte inicial: texto, verificação de assinatura, idempotência pelo WAMID e status de entrega.
   Templates, mídias e chamadas ainda não estão implementados.
+
+## Telegram
+
+Telegram aparece como “Em breve”. As rotas de configuração retornam HTTP 501 e não há webhook ativo.
 
 Falhas retornam JSON estável `{ "error": { "code": "...", "message": "..." } }` com status HTTP
 apropriado; senhas e hashes nunca são incluídos nas respostas.

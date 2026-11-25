@@ -40,13 +40,16 @@ bloqueadas.
 
 - Não há recuperação de senha, limitação de tentativas, MFA ou auditoria detalhada de alterações.
 - A UI anterior de demonstração permanece disponível apenas em desenvolvimento; as telas CRUD
-  autenticadas já conectam empresas, usuários e setores ao D1. Contatos, conversas, mensagens e
-  etiquetas possuem API e banco, mas ainda não têm telas de operação.
+  autenticadas já conectam empresas, usuários e setores ao D1. A central de conversas atualiza as
+  mensagens a cada cinco segundos; contatos e etiquetas ainda não têm telas próprias.
 - Sem uma conta WhatsApp configurada, mensagens continuam como registros locais.
 - A integração inicial da WhatsApp Cloud API suporta texto inbound/outbound e status de entrega.
   O access token é criptografado no D1. Templates, mídias e chamadas ainda não foram implementados.
+- O trial começa na primeira conexão de canal, dura 15 dias e depois deixa o tenant em modo de
+  consulta; mensagens recebidas por webhook também deixam de ser processadas após o vencimento.
+- Telegram é exibido como “Em breve”; suas rotas de conexão e webhook não estão habilitadas.
 - O D1 remoto, o bucket R2, domínio e deploy não foram configurados nem acessados.
 
 Antes do uso comercial, revisar segurança, configurar limites de login e revisar fluxo de
 provisionamento de usuários. O estágio seguinte de produto pode implementar as telas de operação
-para contatos e conversas e, depois, integrar a API oficial da Meta mediante autorização.
+para contatos e conversas e, depois, ampliar os canais oficiais mediante autorização.

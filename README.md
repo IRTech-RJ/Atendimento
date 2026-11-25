@@ -84,8 +84,9 @@ npm run test:api
 Remove-Item Env:TEST_ADMIN_EMAIL, Env:TEST_ADMIN_PASSWORD
 ```
 
-O teste cria empresas e registros fictícios e os exclui logicamente ao terminar. As migrações são
-aplicadas apenas ao D1 local por `db:migrate:local`; não execute `db:migrate:remote` nem `deploy`.
+O teste cria empresas e registros fictícios e os exclui logicamente ao terminar. Para produção,
+configure primeiro os IDs reais do D1 e do R2 e os segredos do Worker; só então aplique as migrações
+remotas e publique o build.
 
 ## API implementada
 
@@ -94,6 +95,13 @@ aplicadas apenas ao D1 local por `db:migrate:local`; não execute `db:migrate:re
 - `/api/admin/companies`: administração global de empresas; somente `platform_admin`.
 - `/api/tenants/:tenantId/users`, `/departments`, `/contacts`, `/conversations`, `/tags`.
 - `/api/tenants/:tenantId/conversations/:conversationId/messages` e associação de etiquetas.
+- `/api/tenants/:tenantId/whatsapp`: configuração segura da Meta Cloud API.
+- `/api/tenants/:tenantId/trial`: status do teste gratuito de 15 dias.
+- `/api/webhooks/whatsapp`: recebimento de mensagens da Meta.
+
+O trial começa na primeira conexão de canal e, após 15 dias, mantém os dados disponíveis para
+consulta, bloqueando alterações e novas respostas. Telegram aparece como “Em breve” e não aceita
+conexões ativas.
 
 Detalhes de payloads, papéis e isolamento estão em [docs/api-local.md](docs/api-local.md).
 
@@ -108,15 +116,15 @@ consultar dados; IDs enviados pelo navegador não concedem acesso. Chaves estran
 também impedem associar registros de setores, conversas e mensagens a outra empresa. Empresas,
 usuários, setores, contatos, conversas, mensagens e etiquetas usam exclusão lógica.
 
-O sistema ainda precisa de limitação de tentativas de login, recuperação de senha e uma revisão de
-segurança antes de qualquer uso comercial. Não há integração WhatsApp nem módulo Delivery. Mensagens
-criadas pela API são apenas registros no D1; nenhum envio ou recebimento externo ocorre.
+O sistema ainda precisa de limitação de tentativas de login, recuperação de senha, MFA e uma revisão
+de segurança antes de uso comercial. WhatsApp Cloud API suporta troca de texto quando configurada
+pela empresa; mídias, templates e chamadas não estão implementados.
 
 ## Cloudflare e GitHub
 
-Não alterei a configuração de conta da Cloudflare, não criei recursos remotos e não fiz deploy.
-`wrangler.jsonc` permanece com ID D1 de exemplo e nome de bucket reservado; qualquer configuração
-remota fica para a etapa final.
+`wrangler.jsonc` ainda usa ID D1 de exemplo e nome de bucket reservado. Antes de publicar, confirme
+os recursos reais da conta Cloudflare, configure os segredos `BOOTSTRAP_ADMIN_KEY`,
+`WHATSAPP_APP_SECRET` e `DATA_ENCRYPTION_KEY`, aplique as migrações remotas e valide o deploy.
 
 O workflow `.github/workflows/deploy.yml` é desativado por padrão. O deploy só pode ser habilitado
 futuramente após configurar a conta e definir `CLOUDFLARE_DEPLOY_ENABLED=true` no GitHub.

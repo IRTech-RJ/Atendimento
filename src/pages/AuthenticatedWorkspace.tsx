@@ -1,6 +1,11 @@
-import { Building2, Layers3, LoaderCircle, MessageCircle, Plus, Users } from "lucide-react";
+import { Building2, CircleCheck, Clock3, ExternalLink, Layers3, LoaderCircle, MessageCircle, Plus, Send, Settings2, Trash2, Users, X } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import {
+  ChannelConnectionWizard,
+  type WhatsAppChannelAccount,
+} from "../components/ChannelConnectionWizard";
 import { WorkspaceLayout } from "../layouts/WorkspaceLayout";
+import { AuthenticatedConversationsPage } from "./AuthenticatedConversationsPage";
 import { apiRequest, type AuthenticatedUser } from "../services/auth";
 import type { AdminSection, CompanySection } from "../types/workspace";
 
@@ -28,14 +33,11 @@ interface DepartmentRecord {
   status: string;
 }
 
-interface WhatsAppAccountRecord {
-  tenant_id: string;
-  phone_number_id: string;
-  verify_token: string;
-  default_department_id: string;
-  enabled: number;
-  created_at: string;
-  updated_at: string;
+interface CompanyTrial {
+  startedAt: string | null;
+  endsAt: string | null;
+  daysRemaining: number;
+  expired: boolean;
 }
 
 interface AuthenticatedWorkspaceProps {
@@ -52,7 +54,10 @@ export function AuthenticatedWorkspace({ user, onLogout }: AuthenticatedWorkspac
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [departments, setDepartments] = useState<DepartmentRecord[]>([]);
-  const [whatsappAccount, setWhatsappAccount] = useState<WhatsAppAccountRecord | null>(null);
+  const [whatsappAccount, setWhatsappAccount] = useState<WhatsAppChannelAccount | null>(null);
+  const [whatsappWizardOpen, setWhatsappWizardOpen] = useState(false);
+  const [whatsappBusinessInfoOpen, setWhatsappBusinessInfoOpen] = useState(false);
+  const [companyTrial, setCompanyTrial] = useState<CompanyTrial | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -89,6 +94,24 @@ export function AuthenticatedWorkspace({ user, onLogout }: AuthenticatedWorkspac
   }, [isPlatformAdmin]);
 
   useEffect(() => {
+    if (!tenantPath) {
+      setCompanyTrial(null);
+      return;
+    }
+    let active = true;
+    apiRequest<{ trial: CompanyTrial }>(`${tenantPath}/trial`)
+      .then(({ trial }) => {
+        if (active) setCompanyTrial(trial);
+      })
+      .catch((cause: unknown) => {
+        if (active) setError(cause instanceof Error ? cause.message : "Não foi possível carregar o período de teste.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [refreshKey, tenantPath]);
+
+  useEffect(() => {
     if (section !== "users" && section !== "departments" && section !== "whatsapp") return;
     if (!tenantPath) return;
     let active = true;
@@ -107,7 +130,7 @@ export function AuthenticatedWorkspace({ user, onLogout }: AuthenticatedWorkspac
       : section === "whatsapp"
         ? Promise.all([
             apiRequest<{ departments: DepartmentRecord[] }>(`${tenantPath}/departments`),
-            apiRequest<{ account: WhatsAppAccountRecord | null }>(`${tenantPath}/whatsapp`),
+            apiRequest<{ account: WhatsAppChannelAccount | null }>(`${tenantPath}/whatsapp`),
           ]).then(([departmentResult, accountResult]) => {
             if (active) {
               setDepartments(departmentResult.departments);
@@ -218,32 +241,6 @@ export function AuthenticatedWorkspace({ user, onLogout }: AuthenticatedWorkspac
     }
   }
 
-  async function saveWhatsApp(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!tenantPath) return;
-    const form = event.currentTarget;
-    const values = new FormData(form);
-    setError("");
-    setNotice("");
-    try {
-      await apiRequest(`${tenantPath}/whatsapp`, {
-        method: "PUT",
-        body: {
-          phoneNumberId: values.get("phoneNumberId"),
-          accessToken: values.get("accessToken"),
-          verifyToken: values.get("verifyToken"),
-          defaultDepartmentId: values.get("defaultDepartmentId"),
-          enabled: true,
-        },
-      });
-      form.reset();
-      setNotice("Configuração WhatsApp salva. Configure o webhook na Meta.");
-      setRefreshKey((value) => value + 1);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Não foi possível salvar a integração.");
-    }
-  }
-
   async function removeWhatsApp() {
     if (!tenantPath) return;
     setError("");
@@ -257,12 +254,19 @@ export function AuthenticatedWorkspace({ user, onLogout }: AuthenticatedWorkspac
     }
   }
 
+  function handleChannelSaved(message: string) {
+    setError("");
+    setNotice(message);
+    setRefreshKey((value) => value + 1);
+  }
+
   const selectedSection = isPlatformAdmin ? adminSection : companySection;
   const heading = selectedSection === "overview"
     ? isPlatformAdmin ? "Painel IR Tech" : `Olá, ${companyName ?? "empresa"}`
     : selectedSection === "companies" ? "Empresas"
       : selectedSection === "users" ? "Usuários"
-        : selectedSection === "whatsapp" ? "WhatsApp Cloud API"
+        : selectedSection === "whatsapp" ? "Canais e integrações"
+          : selectedSection === "conversations" ? "Conversas"
           : "Setores";
 
   return (
@@ -302,6 +306,22 @@ export function AuthenticatedWorkspace({ user, onLogout }: AuthenticatedWorkspac
 
         {error && <p role="alert" className="mt-5 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</p>}
         {notice && <p role="status" className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{notice}</p>}
+        {tenantId && companyTrial && (
+          <div className={`mt-5 flex items-start gap-3 rounded-xl border p-4 text-sm ${
+            companyTrial.expired
+              ? "border-amber-200 bg-amber-50 text-amber-900"
+              : "border-teal-200 bg-teal-50 text-teal-900"
+          }`}>
+            <Clock3 className="mt-0.5 size-4 shrink-0" />
+            <p>
+              {!companyTrial.startedAt
+                ? "O teste gratuito de 15 dias começa ao conectar o primeiro canal."
+                : companyTrial.expired
+                  ? "O período de teste terminou. O ambiente continua disponível somente para consulta."
+                  : `Período de teste ativo: ${companyTrial.daysRemaining} ${companyTrial.daysRemaining === 1 ? "dia restante" : "dias restantes"}.`}
+            </p>
+          </div>
+        )}
         {loading && <p className="mt-5 flex items-center gap-2 text-sm text-slate-500"><LoaderCircle className="size-4 animate-spin" />Carregando dados do D1…</p>}
 
         {selectedSection === "overview" && (
@@ -322,7 +342,7 @@ export function AuthenticatedWorkspace({ user, onLogout }: AuthenticatedWorkspac
               {isPlatformAdmin && <QuickAction icon={<Building2 className="size-4" />} label="Empresas" onClick={() => navigate("companies")} />}
               <QuickAction icon={<Users className="size-4" />} label="Usuários" onClick={() => navigate("users")} />
               <QuickAction icon={<Layers3 className="size-4" />} label="Setores" onClick={() => navigate("departments")} />
-                {!isPlatformAdmin && user.role === "company_admin" && <QuickAction icon={<MessageCircle className="size-4" />} label="WhatsApp" onClick={() => navigate("whatsapp")} />}
+              {!isPlatformAdmin && user.role === "company_admin" && <QuickAction icon={<MessageCircle className="size-4" />} label="Canais" onClick={() => navigate("whatsapp")} />}
             </div>
           </section>
         )}
@@ -425,48 +445,179 @@ export function AuthenticatedWorkspace({ user, onLogout }: AuthenticatedWorkspac
 
         {selectedSection === "whatsapp" && !isPlatformAdmin && user.role === "company_admin" && (
           <section className="mt-7 space-y-5">
-            {tenantId && (
-              <>
-                <form onSubmit={saveWhatsApp} className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-5 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <h2 className="font-semibold text-slate-900">Conectar WhatsApp Cloud API</h2>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Use credenciais fornecidas pela Meta. O access token é criptografado no servidor.
-                    </p>
-                  </div>
-                  <input name="phoneNumberId" required maxLength={100} defaultValue={whatsappAccount?.phone_number_id ?? ""} placeholder="Phone Number ID" className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm" />
-                  <input name="accessToken" type="password" required maxLength={1000} placeholder="Access token permanente ou temporário" className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm" />
-                  <input name="verifyToken" required maxLength={200} defaultValue={whatsappAccount?.verify_token ?? ""} placeholder="Verify token do webhook" className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm" />
-                  <select name="defaultDepartmentId" required defaultValue={whatsappAccount?.default_department_id ?? ""} className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm">
-                    <option value="" disabled>Setor padrão para novas conversas</option>
-                    {departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}
-                  </select>
-                  <button className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white sm:col-span-2 sm:justify-self-start">
-                    <MessageCircle className="size-4" />Salvar integração
-                  </button>
-                </form>
-
-                {whatsappAccount && (
-                  <article className="flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 sm:flex-row sm:items-center">
-                    <div className="flex-1">
-                      <p className="font-semibold text-emerald-950">Configuração cadastrada</p>
-                      <p className="mt-1 text-sm text-emerald-800">
-                        Phone Number ID: {whatsappAccount.phone_number_id}
-                      </p>
-                      <p className="mt-2 text-xs text-emerald-700">
-                        Webhook: HTTPS público + `/api/webhooks/whatsapp`
-                      </p>
+            <div className="max-w-3xl">
+              <p className="text-sm leading-6 text-slate-500">
+                Centralize as conversas da sua empresa. As credenciais ficam protegidas e cada canal pode direcionar novos contatos para um setor.
+              </p>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-3">
+              <article className="flex min-h-64 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-start gap-4">
+                  <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+                    <MessageCircle className="size-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="font-semibold text-slate-950">WhatsApp Business</h2>
+                      <span className="rounded-full bg-sky-50 px-2 py-1 text-[11px] font-medium text-sky-800">Meta Coexistência</span>
                     </div>
-                    <button onClick={() => void removeWhatsApp()} className="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-medium text-emerald-800">
-                      Remover
+                    <p className="mt-1 text-sm leading-5 text-slate-500">Vincule o app Business ao atendimento pelo fluxo oficial da Meta.</p>
+                  </div>
+                </div>
+                <div className="mt-5 flex-1 rounded-xl bg-slate-50 p-3.5 text-sm text-slate-600">
+                  O Embedded Signup da Meta precisa ser configurado para habilitar o pareamento oficial, sem provedor intermediário.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setWhatsappBusinessInfoOpen(true)}
+                  className="mt-4 self-start rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Conectar WhatsApp Business
+                </button>
+              </article>
+
+              <article className="flex min-h-64 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-start gap-4">
+                  <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+                    <MessageCircle className="size-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="font-semibold text-slate-950">Meta Cloud API</h2>
+                      {whatsappAccount && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-800">
+                          <CircleCheck className="size-3.5" />Credenciais salvas
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-sm leading-5 text-slate-500">Conexão oficial para receber e responder mensagens do WhatsApp.</p>
+                  </div>
+                </div>
+                <div className="mt-5 flex-1 rounded-xl bg-slate-50 p-3.5 text-sm">
+                  {whatsappAccount ? (
+                    <>
+                      <p className="font-medium text-slate-800">{whatsappAccount.display_name}</p>
+                      <p className="mt-1 text-xs text-slate-500">Phone Number ID · {whatsappAccount.phone_number_id}</p>
+                      <p className="mt-2 text-xs text-amber-700">Confirme o webhook no painel da Meta para receber eventos.</p>
+                    </>
+                  ) : (
+                    <p className="text-slate-600">Conecte usando as credenciais da sua aplicação WhatsApp na Meta.</p>
+                  )}
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setWhatsappWizardOpen(true)}
+                    className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
+                  >
+                    {whatsappAccount ? "Editar conexão" : "Conectar Meta Cloud API"}
+                  </button>
+                  {whatsappAccount && (
+                    <button
+                      onClick={() => void removeWhatsApp()}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                    >
+                      <Trash2 className="size-4" />Remover
                     </button>
-                  </article>
-                )}
-              </>
-            )}
+                  )}
+                </div>
+              </article>
+
+              <article className="flex min-h-64 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-start gap-4">
+                  <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-sky-50 text-sky-700">
+                    <Send className="size-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="font-semibold text-slate-950">Telegram Bot</h2>
+                      <span className="rounded-full bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-800">Em breve</span>
+                    </div>
+                    <p className="mt-1 text-sm leading-5 text-slate-500">Estamos preparando a conexão de bots Telegram ao atendimento.</p>
+                  </div>
+                </div>
+                <div className="mt-5 flex-1 rounded-xl bg-slate-50 p-3.5 text-sm text-slate-600">
+                  A opção aparecerá aqui assim que o canal estiver disponível.
+                </div>
+                <button
+                  type="button"
+                  disabled
+                  className="mt-4 self-start cursor-not-allowed rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-400"
+                >
+                  Em breve
+                </button>
+              </article>
+            </div>
+            <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+              <Settings2 className="mt-0.5 size-4 shrink-0 text-slate-400" />
+              <p>As credenciais dos canais são armazenadas criptografadas. Webhooks precisam de um endereço público HTTPS.</p>
+            </div>
           </section>
         )}
+        {selectedSection === "conversations" && tenantId && (
+          <AuthenticatedConversationsPage tenantPath={tenantPath} />
+        )}
       </div>
+      {whatsappWizardOpen && tenantPath && (
+        <ChannelConnectionWizard
+          tenantPath={tenantPath}
+          departments={departments}
+          whatsappAccount={whatsappAccount}
+          onClose={() => setWhatsappWizardOpen(false)}
+          onSaved={handleChannelSaved}
+        />
+      )}
+      {whatsappBusinessInfoOpen && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4 backdrop-blur-[2px]"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setWhatsappBusinessInfoOpen(false);
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="whatsapp-business-setup-title"
+            className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">Integração oficial</p>
+                <h2 id="whatsapp-business-setup-title" className="mt-2 text-xl font-semibold text-slate-950">
+                  WhatsApp Business
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWhatsappBusinessInfoOpen(false)}
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Fechar"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+            <p className="mt-4 text-sm leading-6 text-slate-600">
+              O pareamento do app WhatsApp Business com a plataforma usa o Embedded Signup/Coexistência da Meta. O projeto ainda precisa de um app Meta próprio aprovado e da configuração de login v4; não usaremos Z-API nem QR não oficial.
+            </p>
+            <a
+              href="https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-teal-800 hover:text-teal-950"
+            >
+              Ver requisitos oficiais da Meta <ExternalLink className="size-4" />
+            </a>
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setWhatsappBusinessInfoOpen(false)}
+                className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700"
+              >
+                Entendi
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </WorkspaceLayout>
   );
 }

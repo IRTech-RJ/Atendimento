@@ -137,6 +137,19 @@ async function run() {
   const loginAgent = await login(companyA.slug, agentA.user.email, agentA.password);
   assert(loginA.user.tenantId === companyA.id, "O login não ficou associado ao tenant correto.");
 
+  const trial = await request(`/api/tenants/${companyA.id}/trial`, { cookie: loginA.cookie });
+  assert(
+    trial.payload.trial.startedAt === null && trial.payload.trial.endsAt === null && !trial.payload.trial.expired,
+    "O trial não deve começar antes da primeira conexão de canal.",
+  );
+  await request(`/api/tenants/${companyA.id}/telegram`, { cookie: loginA.cookie, expected: 501 });
+  await request(`/api/tenants/${companyA.id}/telegram`, { cookie: loginAgent.cookie, expected: 501 });
+  await request("/api/webhooks/telegram", {
+    method: "POST",
+    body: { update_id: 1 },
+    expected: 401,
+  });
+
   const contactA = await request(`/api/tenants/${companyA.id}/contacts`, {
     method: "POST",
     cookie: loginA.cookie,

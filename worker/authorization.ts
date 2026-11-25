@@ -6,6 +6,7 @@ export interface WorkerEnv {
   MEDIA: R2Bucket;
   APP_ENV: string;
   BOOTSTRAP_ADMIN_KEY?: string;
+  DATA_ENCRYPTION_KEY?: string;
   WHATSAPP_APP_SECRET?: string;
   WHATSAPP_DATA_ENCRYPTION_KEY?: string;
   WHATSAPP_GRAPH_VERSION?: string;
@@ -37,6 +38,26 @@ export async function requireTenantAccess(
 
   if (company.status !== "active" && user.role !== "platform_admin") {
     throw new ApiError(403, "company_unavailable", "O ambiente desta empresa está indisponível.");
+  }
+}
+
+export async function isCompanyTrialExpired(db: D1Database, tenantId: string): Promise<boolean> {
+  const company = await db
+    .prepare("SELECT trial_ends_at FROM companies WHERE id = ? LIMIT 1")
+    .bind(tenantId)
+    .first<{ trial_ends_at: string | null }>();
+  if (!company?.trial_ends_at) return false;
+
+  const trialEnd = Date.parse(company.trial_ends_at);
+  if (!Number.isFinite(trialEnd)) {
+    throw new ApiError(500, "invalid_trial_date", "A data de término do período de teste é inválida.");
+  }
+  return trialEnd <= Date.now();
+}
+
+export async function requireTrialWriteAccess(db: D1Database, tenantId: string): Promise<void> {
+  if (await isCompanyTrialExpired(db, tenantId)) {
+    throw new ApiError(403, "trial_expired", "O período de teste terminou. O ambiente está disponível somente para consulta.");
   }
 }
 

@@ -1,73 +1,14 @@
-import { requirePermission, requireTenantAccess, type WorkerEnv } from "../authorization";
+import {
+  isCompanyTrialExpired,
+  requirePermission,
+  requireTenantAccess,
+  requireTrialWriteAccess,
+  type WorkerEnv,
+} from "../authorization";
 import { ApiError } from "../errors";
-import { json, readJson, requiredId, requiredString } from "../http";
+import { json, optionalString, readJson, requiredId, requiredString } from "../http";
 import type { AuthenticatedUser } from "../security";
-
-interface WhatsAppAccount {
-  tenant_id: string;
-  phone_number_id: string;
-  access_token_encrypted: string;
-  verify_token: string;
-  default_department_id: string;
-  enabled: number;
-}
-
-function bytesToBase64Url(bytes: Uint8Array): string {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
-function base64UrlToBytes(value: string): Uint8Array<ArrayBuffer> {
-  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
-  const binary = atob(base64 + "=".repeat((4 - (base64.length % 4)) % 4));
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-  return bytes;
-}
-
-async function secretKey(env: WorkerEnv): Promise<CryptoKey> {
-  if (!env.WHATSAPP_DATA_ENCRYPTION_KEY) {
-    throw new ApiError(
-      503,
-      "whatsapp_encryption_not_configured",
-      "Configure WHATSAPP_DATA_ENCRYPTION_KEY antes de cadastrar credenciais da Meta.",
-    );
-  }
-  const derived = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(env.WHATSAPP_DATA_ENCRYPTION_KEY),
-  );
-  return crypto.subtle.importKey("raw", derived, "AES-GCM", false, ["encrypt", "decrypt"]);
-}
-
-async function encryptSecret(env: WorkerEnv, secret: string): Promise<string> {
-  const key = await secretKey(env);
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encrypted = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    key,
-    new TextEncoder().encode(secret),
-  );
-  return `${bytesToBase64Url(iv)}.${bytesToBase64Url(new Uint8Array(encrypted))}`;
-}
-
-async function decryptSecret(env: WorkerEnv, value: string): Promise<string> {
-  const [rawIv, rawCiphertext] = value.split(".");
-  if (!rawIv || !rawCiphertext) throw new ApiError(500, "whatsapp_secret_invalid", "Credencial criptografada inválida.");
-  try {
-    const key = await secretKey(env);
-    const decrypted = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: base64UrlToBytes(rawIv) },
-      key,
-      base64UrlToBytes(rawCiphertext),
-    );
-    return new TextDecoder().decode(decrypted);
-  } catch (error) {
-    if (error instanceof ApiError) throw error;
-    throw new ApiError(500, "whatsapp_secret_invalid", "Não foi possível descriptografar a credencial da Meta.");
-  }
-}
+import { decryptSecret, encryptSecret } from "../secret-encryption";
 
 export async function handleWhatsAppAccountRoutes(
   request: Request,
@@ -90,7 +31,7 @@ export async function handleWhatsAppAccountRoutes(
   if (request.method === "GET") {
     const account = await env.DB
       .prepare(
-        `SELECT tenant_id, phone_number_id, verify_token, default_department_id,
+        `SELECT tenant_id, display_name, phone_number_id, default_department_id,
                 enabled, created_at, updated_at
          FROM whatsapp_accounts WHERE tenant_id = ? LIMIT 1`,
       )
@@ -99,8 +40,50 @@ export async function handleWhatsAppAccountRoutes(
     return json({ account: account ?? null });
   }
 
+  if (request.method === "PATCH") {
+    const body = await readJson(request);
+    const displayName = requiredString(body, "displayName", 80);
+    const phoneNumberId = requiredString(body, "phoneNumberId", 100);
+    const verifyToken = optionalString(body, "verifyToken", 200);
+    const defaultDepartmentId = requiredId(body.defaultDepartmentId, "setor");
+    const accessToken = optionalString(body, "accessToken", 1000);
+    const department = await env.DB
+      .prepare(
+        `SELECT id FROM departments
+         WHERE tenant_id = ? AND id = ? AND status = 'active' AND deleted_at IS NULL LIMIT 1`,
+      )
+      .bind(tenantId, defaultDepartmentId)
+      .first<{ id: string }>();
+    if (!department) {
+      throw new ApiError(422, "invalid_department", "O setor padrão não existe ou está indisponível.");
+    }
+
+    const encryptedAccessToken = accessToken ? await encryptSecret(env, accessToken) : null;
+    const result = await env.DB
+      .prepare(
+        `UPDATE whatsapp_accounts
+         SET display_name = ?, phone_number_id = ?, verify_token = COALESCE(?, verify_token),
+             access_token_encrypted = COALESCE(?, access_token_encrypted),
+             default_department_id = ?, updated_at = ?
+         WHERE tenant_id = ?`,
+      )
+      .bind(
+        displayName,
+        phoneNumberId,
+        verifyToken || null,
+        encryptedAccessToken,
+        defaultDepartmentId,
+        new Date().toISOString(),
+        tenantId,
+      )
+      .run();
+    if (!result.meta.changes) throw new ApiError(404, "not_found", "Conexão WhatsApp não encontrada.");
+    return json({ ok: true });
+  }
+
   if (request.method === "PUT") {
     const body = await readJson(request);
+    const displayName = requiredString(body, "displayName", 80);
     const phoneNumberId = requiredString(body, "phoneNumberId", 100);
     const accessToken = requiredString(body, "accessToken", 1000);
     const verifyToken = requiredString(body, "verifyToken", 200);
@@ -119,24 +102,37 @@ export async function handleWhatsAppAccountRoutes(
     const enabled = body.enabled === undefined ? true : body.enabled === true;
     const encryptedAccessToken = await encryptSecret(env, accessToken);
     const now = new Date().toISOString();
-    await env.DB
-      .prepare(
+    const trialEndsAt = new Date(Date.parse(now) + 15 * 86_400_000).toISOString();
+    await env.DB.batch([
+      env.DB
+        .prepare(
         `INSERT INTO whatsapp_accounts
-         (tenant_id, phone_number_id, access_token_encrypted, verify_token, default_department_id, enabled, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)
+         (tenant_id, display_name, phone_number_id, access_token_encrypted, verify_token, default_department_id, enabled, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(tenant_id) DO UPDATE SET
+           display_name = excluded.display_name,
            phone_number_id = excluded.phone_number_id,
            access_token_encrypted = excluded.access_token_encrypted,
            verify_token = excluded.verify_token,
            default_department_id = excluded.default_department_id,
            enabled = excluded.enabled,
            updated_at = excluded.updated_at`,
-      )
-      .bind(tenantId, phoneNumberId, encryptedAccessToken, verifyToken, defaultDepartmentId, Number(enabled), now)
-      .run();
+        )
+        .bind(tenantId, displayName, phoneNumberId, encryptedAccessToken, verifyToken, defaultDepartmentId, Number(enabled), now),
+      env.DB
+        .prepare(
+          `UPDATE companies
+           SET trial_started_at = COALESCE(trial_started_at, ?),
+               trial_ends_at = COALESCE(trial_ends_at, ?),
+               updated_at = ?
+           WHERE id = ? AND ? = 1`,
+        )
+        .bind(now, trialEndsAt, now, tenantId, Number(enabled)),
+    ]);
     return json({
       account: {
         tenantId,
+        displayName,
         phoneNumberId,
         verifyToken,
         defaultDepartmentId,
@@ -242,6 +238,10 @@ async function processWhatsAppWebhook(env: WorkerEnv, body: Record<string, unkno
         .bind(phoneNumberId)
         .first<{ tenant_id: string; default_department_id: string }>();
       if (!account) continue;
+      if (await isCompanyTrialExpired(env.DB, account.tenant_id)) {
+        console.warn("WhatsApp webhook ignored because the company trial has expired.");
+        continue;
+      }
 
       const statuses = Array.isArray(value.statuses) ? value.statuses as Array<Record<string, unknown>> : [];
       for (const status of statuses) {
@@ -349,6 +349,7 @@ export async function sendWhatsAppText(
   conversationId: string,
   text: string,
 ): Promise<{ id: string } | null> {
+  await requireTrialWriteAccess(env.DB, tenantId);
   const account = await env.DB
     .prepare(
       `SELECT wa.phone_number_id, wa.access_token_encrypted

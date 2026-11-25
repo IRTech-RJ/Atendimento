@@ -44,7 +44,7 @@ const companyItems = [
   { id: "contacts", label: "Contatos", icon: Contact },
   { id: "users", label: "Equipe", icon: Users },
   { id: "departments", label: "Setores", icon: Layers3 },
-  { id: "whatsapp", label: "WhatsApp", icon: MessageCircle },
+  { id: "whatsapp", label: "Canais", icon: MessageCircle },
 ] as const;
 
 export function WorkspaceSidebar({
@@ -65,7 +65,7 @@ export function WorkspaceSidebar({
     : companyItems.filter((item) => {
         if (item.id === "users" || item.id === "departments") return role === "company_admin";
         if (item.id === "contacts") return role === "company_admin" || role === "supervisor";
-        if (item.id === "whatsapp") return role === "company_admin";
+        if (item.id === "whatsapp") return isDemo || role === "company_admin";
         return true;
       });
 
