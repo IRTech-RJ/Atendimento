@@ -1,0 +1,10 @@
+*
+!Dockerfile
+!source
+!source/**
+source/.git
+source/.env*
+source/.dev.vars*
+source/.wrangler
+source/dist
+source/node_modules

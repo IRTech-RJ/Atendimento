@@ -1,0 +1,26 @@
+name: atendimento-staging
+services:
+  app:
+    build: .
+    image: "atendimento-staging:${ATENDIMENTO_IMAGE_TAG:-local}"
+    restart: unless-stopped
+    init: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    ports:
+      - '127.0.0.1:18787:8787'
+    volumes:
+      - ./.dev.vars:/app/dist/worker/.dev.vars:ro
+      - data:/data
+    networks:
+      edge:
+        aliases: [atendimento-staging]
+    logging:
+      options:
+        max-size: 10m
+        max-file: '3'
+volumes:
+  data:
+networks:
+  edge:
+    name: atendimento_staging_edge

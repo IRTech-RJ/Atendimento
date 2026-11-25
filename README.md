@@ -1,7 +1,7 @@
 # IR Tech Atendimento
 
 Plataforma SaaS de atendimento empresarial da IR Tech. Slogan: **Soluções inteligentes em tecnologia.**
-O código da aplicação está sendo desenvolvido do zero; não usa Chatwoot, Docker, Firebase, Supabase,
+O código da aplicação está sendo desenvolvido do zero; não usa Chatwoot, Firebase, Supabase,
 WhatsApp Web ou serviço de atendimento de terceiros.
 
 ## Tecnologias
@@ -13,7 +13,11 @@ WhatsApp Web ou serviço de atendimento de terceiros.
 - **Cloudflare R2** reservado para arquivos (nenhum upload implementado).
 - **Git + GitHub Actions** para versionamento; deploy automático permanece desativado.
 
-Não é necessário instalar Docker. Git, Node.js e npm foram verificados neste ambiente.
+Para desenvolvimento local, use Git, Node.js e npm.
+
+## Ambiente online de testes
+
+O Atendimento está publicado na VPS da IR Tech. O guia da VPS registra a versão publicada, como atualizar o ambiente e onde retomar o teste de WhatsApp. [Ambiente de testes](https://atendimento.irtechoficial.com.br/), [Guia da VPS](docs/ambiente-vps.md)
 
 ## Estrutura
 
@@ -31,7 +35,8 @@ worker/
 migrations/     migrações SQL do D1
 scripts/        teste de integração da API
 public/         arquivos estáticos
-docs/           arquitetura e API local
+deploy/vps/     configuração do ambiente de testes
+docs/           arquitetura, API local e operação da VPS
 ```
 
 ## Executar localmente no Windows

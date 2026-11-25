@@ -1,0 +1,10 @@
+atendimento.irtechoficial.com.br {
+	encode zstd gzip
+	@application path / /assets/* /api/*
+	handle @application {
+		reverse_proxy atendimento-staging:8787
+	}
+	handle {
+		respond 404
+	}
+}

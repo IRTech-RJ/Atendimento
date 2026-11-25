@@ -48,7 +48,8 @@ bloqueadas.
 - O trial começa na primeira conexão de canal, dura 15 dias e depois deixa o tenant em modo de
   consulta; mensagens recebidas por webhook também deixam de ser processadas após o vencimento.
 - Telegram é exibido como “Em breve”; suas rotas de conexão e webhook não estão habilitadas.
-- O D1 remoto, o bucket R2, domínio e deploy não foram configurados nem acessados.
+- O ambiente de testes usa D1 local na VPS. A configuração do D1 e do R2 gerenciados faz parte da
+  preparação para a publicação na Cloudflare. [Guia da VPS](ambiente-vps.md)
 
 Antes do uso comercial, revisar segurança, configurar limites de login e revisar fluxo de
 provisionamento de usuários. O estágio seguinte de produto pode implementar as telas de operação
